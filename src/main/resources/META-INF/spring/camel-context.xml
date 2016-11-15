@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Configures the Camel Context -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:camel-cxf="http://camel.apache.org/schema/cxf"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.springframework.org/schema/beans                http://www.springframework.org/schema/beans/spring-beans.xsd                      http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd                      http://camel.apache.org/schema/cxf http://camel.apache.org/schema/cxf/camel-cxf.xsd">
+    <!-- A-MQ JMS Bean & Connection Factory -->
+    <bean class="org.apache.activemq.ActiveMQConnectionFactory" id="connectionFactory">
+        <property name="brokerURL" value="tcp://127.0.0.1:61616"/>
+        <property name="userName" value="admin"/>
+        <property name="password" value="admin"/>
+    </bean>
+    <bean class="org.apache.activemq.camel.component.ActiveMQComponent" id="activemq">
+        <property name="connectionFactory" ref="connectionFactory"/>
+    </bean>
+    <!-- Duplicate Check Filestore -->
+    <bean
+        class="org.apache.camel.processor.idempotent.FileIdempotentRepository" id="fileStore">
+        <property name="fileStore" value="src/fileidempotent/.filestore.dat"/>
+        <property name="maxFileStoreSize" value="512000"/>
+        <property name="cacheSize" value="250"/>
+    </bean>
+    <!-- CXF Web Service to backend mock SAP SOAP Service -->
+    <camel-cxf:cxfEndpoint
+        address="http://Simons-MBP.home:8088/mockSAPSOAP" id="sapClient" serviceClass="org.example.sap.SAP">
+        <camel-cxf:inInterceptors>
+            <ref bean="gZipInInterceptor"/>
+        </camel-cxf:inInterceptors>
+        <camel-cxf:outInterceptors>
+            <ref bean="gZipOutInterceptor"/>
+        </camel-cxf:outInterceptors>
+    </camel-cxf:cxfEndpoint>
+    <bean class="org.apache.cxf.transport.common.gzip.GZIPInInterceptor" id="gZipInInterceptor"/>
+    <bean
+        class="org.apache.cxf.transport.common.gzip.GZIPOutInterceptor" id="gZipOutInterceptor"/>
+    <camelContext id="Innovapost-Shipments-To-SAP-Context"
+        xmlns="http://camel.apache.org/schema/spring" xmlns:order="http://fabric8.com/examples/order/v7">
+        <!-- Read incoming EDI files. Move consumed files to an archive directory, 
+			or error dir in case of a problem -->
+        <route id="consume-incoming-file">
+            <!-- Read the EDI message type, version code and create a duplicate key -->
+            <from id="_from1" uri="file:src/data/in?move=archive/${date:now:yyyyMMdd}/${file:name}&amp;moveFailed=error/${file:name.noext}-${date:now:yyyyMMddHHmmssSSS}.${file:ext}"/>
+            <onException id="_onException1" useOriginalMessage="true">
+                <!-- Catch any validation errors that come back from Trace -->
+                <exception>com.tracegroup.transformer.camel.ValidationFailureException</exception>
+                <handled>
+                    <constant>true</constant>
+                </handled>
+                <log id="_log1" message="Incoming file is not a valid X12 215 document.  Error is ${exception.message}. Message contents: ${body}"/>
+                <setHeader headerName="errorMessage" id="_setHeader1">
+                    <simple>${exception.message}</simple>
+                </setHeader>
+                <to id="_to1" uri="activemq:error.in.file"/>
+            </onException>
+            <to id="_to2" uri="txfrmr:com.redhat.edi.InnovapostPoC/extractMetadata"/>
+            <choice id="_choice1">
+                <when id="_when1">
+                    <!-- We have a valid manifest -->
+                    <simple>${header.x12MessageType} == '215'</simple>
+                    <to id="_to3" uri="activemq:in.215"/>
+                </when>
+                <otherwise id="_otherwise1">
+                    <setHeader headerName="errorMessage" id="_setHeader2">
+                        <simple>Not a valid X12 Manifest. The Message Type is [${header.x12MessageType}]</simple>
+                    </setHeader>
+                    <to id="_to4" uri="activemq:error.in.file"/>
+                </otherwise>
+            </choice>
+        </route>
+        <!-- Check whether the incoming message is a duplicate. If so, move it 
+			to a duplicate queue -->
+        <route id="duplicate-check-x12">
+            <!-- x12DuplicateKey (set by Trace) made up of Interchange-Date, Interchange-Time 
+				and Interchange-Control-Number -->
+            <from id="_from2" uri="activemq:in.215"/>
+            <idempotentConsumer id="_idempotentConsumer1"
+                messageIdRepositoryRef="fileStore" skipDuplicate="false">
+                <!-- use the messageId header as key for identifying duplicate messages -->
+                <header>x12DuplicateKey</header>
+                <!-- we handle duplicate messages using a filter -->
+                <!-- if not a duplicate send it to the new-215 queue -->
+                <filter id="_filter1">
+                    <!-- the filter will only react on duplicate messages, if this property 
+						is set on the Exchange -->
+                    <exchangeProperty>CamelDuplicateMessage</exchangeProperty>
+                    <to id="_to7" uri="activemq:duplicate-215"/>
+                    <log id="_log3" message="Duplicate X12 detected..."/>
+                    <stop id="_stop1"/>
+                </filter>
+                <log id="_log4" message="X12 message is unique"/>
+                <to id="_to8" uri="activemq:new-215"/>
+            </idempotentConsumer>
+        </route>
+        <!-- Map the X12 215 to an internal Puralator XML format -->
+        <route id="convert-215-to-internal-format">
+            <from id="_from3" uri="activemq:new-215"/>
+            <to id="_to5" uri="txfrmr:com.redhat.edi.InnovapostPoC/transformToInternalFormat"/>
+            <to id="_to6" uri="activemq:in.internal.format"/>
+            <log id="_log2" message="${body}"/>
+        </route>
+        <!-- Publish the interim or billing manifest to their respective backend 
+			services -->
+        <route id="publish-manifest">
+            <from id="_from4" uri="activemq:in.internal.format"/>
+            <choice id="_choice2">
+                <when id="_when2">
+                    <!-- Convert interim ground manifests to CSV file -->
+                    <simple>${header.manifestType} == 'interim'</simple>
+                    <log id="_log5" message="Processing interim manifest ground - converting to CSV file..."/>
+                    <to id="_to9" uri="txfrmr:com.redhat.edi.InnovapostPoC/transformToCSV"/>
+                    <to id="_to10" uri="file:src/data/out/interim/ground?fileName=interim-ground-${date:now:yyyyMMddHHmmssSSS}.csv"/>
+                </when>
+                <when id="_when3">
+                    <!-- Publish billing manifests to SAP SOAP service -->
+                    <simple>${header.manifestType} == 'billing'</simple>
+                    <log id="_log6" message="Billing manifest detected..."/>
+                    <to id="_to11" uri="activemq:in.sap"/>
+                </when>
+                <otherwise id="_otherwise2">
+                    <log id="_log7" message="Unknown manifest type detected..."/>
+                </otherwise>
+            </choice>
+        </route>
+        <!-- Publish internal format manifest to SAP -->
+        <route id="send-to-sap">
+            <from id="_from5" uri="activemq:in.sap"/>
+            <onException id="_onException1" useOriginalMessage="true">
+                <!-- Catch any SAP / SOAP / CXF errors -->
+                <exception>java.lang.Exception</exception>
+                <handled>
+                    <constant>true</constant>
+                </handled>
+                <log id="_log1" message="Error connecting to SAP.  Error is ${exception.message}. Message contents: ${body}"/>
+                <setHeader headerName="errorMessage" id="_setHeader1">
+                    <simple>${exception.message}</simple>
+                </setHeader>
+                <to id="_to1" uri="activemq:error.out.sap"/>
+            </onException>
+            <convertBodyTo id="_convertBodyTo1" type="java.lang.String"/>
+            <setHeader headerName="operationNamespace" id="_setHeader3">
+                <constant>http://www.example.org/SAP/</constant>
+            </setHeader>
+            <setHeader headerName="operationName" id="_setHeader4">
+                <constant>NewOperation</constant>
+            </setHeader>
+            <to id="_to12" uri="cxf:bean:sapClient"/>
+            <log id="_log8" message="Response from SAP: [${body}]"/>
+        </route>
+    </camelContext>
+</beans>

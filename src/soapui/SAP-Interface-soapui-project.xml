@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<con:soapui-project id="adbf35e8-93f8-424c-8934-380e071cf6b7" activeEnvironment="Default" name="SAP-Interface" resourceRoot="" soapui-version="5.2.1" abortOnError="false" runType="SEQUENTIAL" xmlns:con="http://eviware.com/soapui/config"><con:settings/><con:interface xsi:type="con:WsdlInterface" id="39ffb054-e2c6-4aa1-875f-f2193691d46f" wsaVersion="NONE" name="SAPSOAP" type="wsdl" bindingName="{http://www.example.org/SAP/}SAPSOAP" soapVersion="1_1" anonymous="optional" definition="file:/Users/sigreen/Documents/Workspaces/innovapost/edi-shipment-to-sap/src/soapui/SAP.wsdl" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:settings/><con:definitionCache type="TEXT" rootPart="file:/Users/sigreen/Documents/Workspaces/innovapost/edi-shipment-to-sap/src/soapui/SAP.wsdl"><con:part><con:url>file:/Users/sigreen/Documents/Workspaces/innovapost/edi-shipment-to-sap/src/soapui/SAP.wsdl</con:url><con:content><![CDATA[<wsdl:definitions name="SAP" targetNamespace="http://www.example.org/SAP/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tns="http://www.example.org/SAP/" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <wsdl:types>
+    <xsd:schema targetNamespace="http://www.example.org/SAP/">
+      <xsd:element name="NewOperation">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="in" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+      <xsd:element name="NewOperationResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="out" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+    </xsd:schema>
+  </wsdl:types>
+  <wsdl:message name="NewOperationRequest">
+    <wsdl:part element="tns:NewOperation" name="parameters"/>
+  </wsdl:message>
+  <wsdl:message name="NewOperationResponse">
+    <wsdl:part element="tns:NewOperationResponse" name="parameters"/>
+  </wsdl:message>
+  <wsdl:portType name="SAP">
+    <wsdl:operation name="NewOperation">
+      <wsdl:input message="tns:NewOperationRequest"/>
+      <wsdl:output message="tns:NewOperationResponse"/>
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="SAPSOAP" type="tns:SAP">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="NewOperation">
+      <soap:operation soapAction="http://www.example.org/SAP/NewOperation"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="SAP">
+    <wsdl:port binding="tns:SAPSOAP" name="SAPSOAP">
+      <soap:address location="http://www.example.org/"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>]]></con:content><con:type>http://schemas.xmlsoap.org/wsdl/</con:type></con:part></con:definitionCache><con:endpoints><con:endpoint>http://Simons-MBP.home:8088/mockSAPSOAP</con:endpoint><con:endpoint>http://www.example.org/</con:endpoint></con:endpoints><con:operation id="bf15c3a0-3f82-4fb1-89cb-d8dd87e72eb9" isOneWay="false" action="http://www.example.org/SAP/NewOperation" name="NewOperation" bindingOperationName="NewOperation" type="Request-Response" inputName="" receivesAttachments="false" sendsAttachments="false" anonymous="optional"><con:settings/><con:call id="d711ec77-7689-4f07-8237-8d25274164cb" name="Sample-Request"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings><con:encoding>UTF-8</con:encoding><con:endpoint>http://Simons-MBP.home:8088/mockSAPSOAP</con:endpoint><con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sap="http://www.example.org/SAP/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <sap:NewOperation>
+         <in>hello there</in>
+      </sap:NewOperation>
+   </soapenv:Body>
+</soapenv:Envelope>]]></con:request><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:wsaConfig mustUnderstand="NONE" version="200508" action="http://www.example.org/SAP/NewOperation"/><con:wsrmConfig version="1.2"/></con:call></con:operation></con:interface><con:mockService id="91d85d03-9b31-436c-8137-52a398c9184c" port="8088" path="/mockSAPSOAP" host="Simons-MBP.home" name="SAPSOAP MockService"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.mock.WsdlMockService@require-soap-action">false</con:setting></con:settings><con:properties/><con:mockOperation name="NewOperation" id="7114e787-ffc7-4cb9-8edd-451ce446df7e" interface="SAPSOAP" operation="NewOperation"><con:settings/><con:defaultResponse>Response 1</con:defaultResponse><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:response name="Response 1" id="0abc3997-a42c-4cf2-b37d-a3c3d90df2b3" httpResponseStatus="200" encoding="UTF-8"><con:settings/><con:responseContent><![CDATA[<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sap="http://www.example.org/SAP/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <sap:NewOperationResponse>
+         <out>Idoc-Received</out>
+      </sap:NewOperationResponse>
+   </soapenv:Body>
+</soapenv:Envelope>]]></con:responseContent><con:wsaConfig mustUnderstand="NONE" version="200508" action="http://www.example.org/SAP/NewOperation"/></con:response><con:dispatchConfig/></con:mockOperation></con:mockService><con:properties/><con:wssContainer/><con:oAuth2ProfileContainer/></con:soapui-project>
