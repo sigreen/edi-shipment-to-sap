@@ -32,6 +32,10 @@ Copy the above files to a temporary location, and execute the following Maven co
 	mvn install:install-file -DgroupId=com.tracegroup.transformer -DartifactId=transformer-camel-component -Dversion=1.1.0 -Dfile=transformer-camel-component-1.1.0.jar -Dpackaging=jar
 	mvn install:install-file -DgroupId=com.tracegroup.transformer -DartifactId=transformer-designtime -Dversion=3.6.1 -Dfile=transformer-designtime-3.6.1.jar -Dpackaging=jar
 	mvn install:install-file -DgroupId=com.tracegroup.transformer -DartifactId=currencylib -Dversion=1.0.5 -Dfile=currencylib-1.0.5.jar -Dpackaging=jar
+	
+In addition to the above dependencies, we also need to install our Transformer project OSGi bundle into Maven.  To do this, execute:
+
+	mvn install:install-file -DgroupId=com.redhat.edi -DartifactId=InnovapostPoC -Dversion=1.0.0 -Dfile=InnovapostPoC-1.0.0.jar -Dpackaging=jar
 
 Install Transformer dependencies and Camel project to Karaf:
 =================================================================================
